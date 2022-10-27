@@ -54,7 +54,6 @@ int Raytracer::InitDeviceAndScene(const char* config)
 
 int Raytracer::ReleaseDeviceAndScene()
 {
-	int i = 0;
 	rtcReleaseScene(scene_);
 	rtcReleaseDevice(device_);
 
