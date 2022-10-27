@@ -1,0 +1,32 @@
+#pragma once
+#include "vector3.h"
+
+struct Vertex3f { float x, y, z; }; // a single vertex position structure matching certain format
+
+using Normal3f = Vertex3f; // a single vertex normal structure matching certain format
+
+struct Coord2f { float u, v; }; // texture coord structure
+
+struct Triangle3ui { unsigned int v0, v1, v2; }; // indicies of a single triangle, the struct must match certain format, e.g. RTC_FORMAT_UINT3
+
+struct RTC_ALIGN( 16 ) Color4f
+{
+	struct { float r, g, b, a; }; // a = 1 means that the pixel is opaque
+	Color4f(Vector3 color, const float opacity = 1.0f)
+	{
+		r = color.x;
+		g = color.y;
+		b = color.z;
+		a = opacity;
+	}
+
+	Color4f(float pR, float pG, float pB, float pA)
+	{
+		r = pR;
+		g = pG;
+		b = pB;
+		a = pA;
+	}
+};
+
+struct Color3f { float r, g, b; };
