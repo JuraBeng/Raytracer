@@ -20,7 +20,7 @@ Raytracer::Raytracer(const int width, const int height,
 	m_mirror_shader = new MirrorShader(this);
 	m_light = Light(Vector3{ 313, - 1200, 1200 }, Vector3{ 1.0f, 1.0f, 1.0f }, Vector3{1.0f, 1.0f, 1.0f});
 	m_super_sampling = new bool;
-	*m_super_sampling = false;
+	m_super_sampling = false;
 	m_samples = 1;
 	m_width = width;
 	m_height = height;
@@ -66,6 +66,7 @@ void Raytracer::LoadScene(const std::string file_name, const char* config = "thr
 	this->file_name = file_name;
 	InitDeviceAndScene(options.c_str());
 	const int no_surfaces = LoadOBJ(this->file_name.c_str(), surfaces_, materials_);
+	const int no_surfaces1 = LoadOBJ(this->file_name.c_str(), surfaces2_, materials_);
 	// surfaces loop
 	for (auto surface : surfaces_)
 	{
@@ -123,6 +124,62 @@ void Raytracer::LoadScene(const std::string file_name, const char* config = "thr
 		rtcReleaseGeometry(mesh);
 	} // end of surfaces loop
 
+	for (auto surface : surfaces2_)
+	{
+		RTCGeometry mesh = rtcNewGeometry(device_, RTC_GEOMETRY_TYPE_TRIANGLE);
+
+		Vertex3f* vertices = (Vertex3f*)rtcSetNewGeometryBuffer(
+			mesh, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3,
+			sizeof(Vertex3f), 3 * surface->no_triangles());
+
+		Triangle3ui* triangles = (Triangle3ui*)rtcSetNewGeometryBuffer(
+			mesh, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3,
+			sizeof(Triangle3ui), surface->no_triangles());
+
+		rtcSetGeometryUserData(mesh, (void*)(surface->get_material()));
+
+		rtcSetGeometryVertexAttributeCount(mesh, 2);
+
+		Normal3f* normals = (Normal3f*)rtcSetNewGeometryBuffer(
+			mesh, RTC_BUFFER_TYPE_VERTEX_ATTRIBUTE, 0, RTC_FORMAT_FLOAT3,
+			sizeof(Normal3f), 3 * surface->no_triangles());
+
+		Coord2f* tex_coords = (Coord2f*)rtcSetNewGeometryBuffer(
+			mesh, RTC_BUFFER_TYPE_VERTEX_ATTRIBUTE, 1, RTC_FORMAT_FLOAT2,
+			sizeof(Coord2f), 3 * surface->no_triangles());
+
+		// triangles loop
+		for (int i = 0, k = 0; i < surface->no_triangles(); ++i)
+		{
+			Triangle& triangle = surface->get_triangle(i);
+
+			// vertices loop
+			for (int j = 0; j < 3; ++j, ++k)
+			{
+				const Vertex& vertex = triangle.vertex(j);
+
+				vertices[k].x = vertex.position.x - 150.0f;
+				vertices[k].y = vertex.position.y + 100.0f;
+				vertices[k].z = vertex.position.z + 50.0f;
+
+				normals[k].x = vertex.normal.x;
+				normals[k].y = vertex.normal.y;
+				normals[k].z = vertex.normal.z;
+
+				tex_coords[k].u = vertex.texture_coords[0].u;
+				tex_coords[k].v = vertex.texture_coords[0].v;
+			} // end of vertices loop
+
+			triangles[i].v0 = k - 3;
+			triangles[i].v1 = k - 2;
+			triangles[i].v2 = k - 1;
+		} // end of triangles loop
+
+		rtcCommitGeometry(mesh);
+		unsigned int geom_id = rtcAttachGeometry(scene_, mesh);
+		rtcReleaseGeometry(mesh);
+	} // end of surfaces loop
+
 	rtcCommitScene(scene_);
 }
 
@@ -140,15 +197,15 @@ Color4f Raytracer::get_pixel(const int x, const int y, const int tid,  const flo
 		{
 			float x_offset = unif_dist(generator);
 			float y_offset = unif_dist(generator);
-			RTCRay ray = camera_.GenerateRay(x + x_offset, y + y_offset);
-			color += TraceRay(ray, 0, 5);
+			RTCRay ray = camera_.GenerateRay(x + x_offset, y + y_offset, depth_of_field,  m_rad_size, m_aperture_size);
+			color += TraceRay(ray, 0, 6);
 		}
 		color /= m_samples;
 	}
 	else
 	{
-		RTCRay ray = camera_.GenerateRay(x, y);
-		color = TraceRay(ray, 0, 5);
+		RTCRay ray = camera_.GenerateRay(x, y, depth_of_field, m_rad_size, m_aperture_size);
+		color = TraceRay(ray, 0, 6);
 	}
 	return Color4f{ color, 1.0f };
 }
@@ -163,6 +220,8 @@ int Raytracer::Ui()
 		show_view_window = !show_view_window;
 	if (ImGui::Button("Open material window"))
 		show_material_window = !show_material_window;
+	if (ImGui::Button("Open graphics window"))
+		show_graphics_window = !show_graphics_window;
 	ImGui::End();
 
 	if (show_view_window)
@@ -222,6 +281,51 @@ int Raytracer::Ui()
 		ImGui::End();
 	}
 
+	if (show_graphics_window)
+	{
+		ImGui::Begin("Graphics settings window");
+		ImGui::Checkbox("SSAA", &m_super_sampling);
+		if (m_super_sampling)
+		{
+			if (m_samples == 1)
+				m_samples = 4;
+			ImGui::SameLine();
+			if (ImGui::Button("x2"))
+			{
+				m_samples = 4;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("x4"))
+			{
+				m_samples = 16;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("x8"))
+			{
+				m_samples = 64;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("x16"))
+			{
+				m_samples = 128;
+			}
+		}
+		else
+		{
+			m_samples = 1;
+		}
+		ImGui::Separator();
+		ImGui::Checkbox("Depth of field", &depth_of_field);
+		if(depth_of_field)
+		{
+			ImGui::InputFloat("Radius", &m_rad_size);
+			ImGui::InputFloat("Aperture", &m_aperture_size);
+		}
+		ImGui::Separator();
+		ImGui::End();
+	}
+
+
 	// Use a Begin/End pair to created a named window
 	ImGui::Begin("Ray Tracer Params");
 
@@ -229,39 +333,16 @@ int Raytracer::Ui()
 	ImGui::Text("Materials = %d", materials_.size());
 	ImGui::Separator();
 	ImGui::Checkbox("Vsync", &vsync_);
-	ImGui::Checkbox("Quick render", &m_quick_render);
-	ImGui::Checkbox("SSAA", m_super_sampling);
+	ImGui::Checkbox("Fast render", &m_quick_render);
+	if(m_quick_render)
+	{
+		ImGui::SameLine();
+		ImGui::Checkbox("Faster render", &quickest);
+	}
 
-	if (*m_super_sampling)
-	{
-		if (m_samples == 1)
-			m_samples = 4;
-		ImGui::SameLine();
-		if (ImGui::Button("x2"))
-		{
-			m_samples = 4;
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("x4"))
-		{
-			m_samples = 16;
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("x8"))
-		{
-			m_samples = 64;
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("x16"))
-		{
-			m_samples = 128;
-		}
-	}
-	else
-	{
-		m_samples = 1;
-	}
-	if(*m_super_sampling)
+	if(depth_of_field)
+		ImGui::Text("Using Depth of field with rad %.2f and aperture %.2f", m_rad_size, m_aperture_size);
+	if(m_super_sampling)
 		ImGui::Text("Using SSAA with %d samples per pixel", m_samples);
 	ImGui::Text("Rendering for %dX%d size.", m_width, m_height);
 	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
@@ -315,10 +396,14 @@ Vector3 Raytracer::TraceRay(RTCRay t_ray, int t_depth, int t_max_depth)
 			Vector3 hit_point = ray_ops::getRayHitPoint(ray_hit);
 			if (m_quick_render)
 			{
-				Vector3 dir_to_light = hit_point.FromDirectionTo(m_light.getLightPosition());
-				RTCRayHit shadow_ray = ray_ops::generateRayHit(hit_point, dir_to_light);
-				Vector3 out = Vector3{ 1.0f, 1.0f, 1.0f } *max(0.0f, normal.DotProduct(dir_to_light)) *
-					!ray_ops::isRayIntersected(shadow_ray, &scene_);
+				Vector3 out = { 1.0f, 1.0f, 1.0f };
+				if(!quickest)
+				{
+					Vector3 dir_to_light = hit_point.FromDirectionTo(m_light.getLightPosition());
+					RTCRayHit shadow_ray = ray_ops::generateRayHit(hit_point, dir_to_light);
+					out = Vector3{ 1.0f, 1.0f, 1.0f } *max(0.0f, normal.DotProduct(dir_to_light)) *
+						!ray_ops::isRayIntersected(shadow_ray, &scene_);
+				}
 				return out;
 			}
 

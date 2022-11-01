@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "camera.h"
 
+#include <iostream>
+
 # define M_PI           3.14159265358979323846  /* pi */
 
 Camera::Camera( const int width, const int height, const float fov_y,
@@ -25,22 +27,39 @@ Camera::Camera( const int width, const int height, const float fov_y,
 	M_c_w_ = Matrix3x3( x_c, y_c, z_c );
 }
 
-RTCRay Camera::GenerateRay( const float x_i, const float y_i) const
+RTCRay Camera::GenerateRay( const float x_i, const float y_i, bool depth_of_field, float t_focal_rad, float t_aperture_rad) const
 {
+	Vector3 origin = { view_from_.x , view_from_.y , view_from_.z };
+	Vector3 direction = { x_i - float(width_) / 2.0f, (float)height_ / 2.0f - y_i, -f_y_ };
+	direction.Normalize();
+	direction = M_c_w_ * direction;
+
+
+	if (t_focal_rad > 0.0f && depth_of_field)
+	{
+		Vector3 observable_point = origin + direction * t_focal_rad;
+		const float lower = 0.0f;
+		const float upper = 1.0f;
+		std::mt19937 generator(y_i * x_i + t_focal_rad * t_aperture_rad);
+		std::uniform_real_distribution<float> unif_rad(lower, upper);
+		std::uniform_real_distribution<float> unif_angle(-1000, 1000.f);
+
+		float theta = 2 * M_PI * unif_angle(generator);
+		float r = t_aperture_rad * sqrt(unif_rad(generator));
+		origin.x = view_from_.x + r * cos(theta);
+		origin.y = view_from_.y + r * sin(theta);
+
+		direction = observable_point - origin;
+		direction.Normalize();
+	}
+
+
 	// setup a primary ray
 	RTCRay ray;
-	ray.org_x = view_from_.x; // ray origin
-	ray.org_y = view_from_.y;
-	ray.org_z = view_from_.z;
+	ray.org_x = origin.x; // ray origin
+	ray.org_y = origin.y;
+	ray.org_z = origin.z;
 	ray.tnear = FLT_MIN; // start of ray segment
-
-	Vector3 direction;
-	direction.x = x_i - float(width_) / 2.0;
-	direction.y = (float)height_ / 2.0 - y_i;
-	direction.z = -f_y_;
-	direction.Normalize();
-
-	direction = M_c_w_ * direction;
 
 
 	ray.dir_x = direction.x; // ray direction

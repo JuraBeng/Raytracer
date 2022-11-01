@@ -39,8 +39,8 @@ public:
 private:
 	MirrorShader* m_mirror_shader;
 	std::vector<Surface*> surfaces_;
+	std::vector<Surface*> surfaces2_;
 	std::vector<Material*> materials_;
-	bool* m_super_sampling;
 	RTCDevice device_;
 	RTCScene scene_;
 	Camera camera_;
@@ -71,14 +71,19 @@ private:
 	int m_samples = 1;
 	int m_width;
 	int m_height;
-	float m_spec_coef = 1.0f;
 	float view_from_x, view_from_y, view_from_z;
 	float view_at_x, view_at_y, view_at_z;
 	float detail_x, detail_y, detail_z = 0;
 	float detail_view_x, detail_view_y, detail_view_z = 0;
 	bool m_quick_render = false;
+	bool quickest = false;
 	float alpha = 2.255f;
 	bool show_material_window = false;
+	bool show_graphics_window = false;
 	bool show_view_window = false;
+	bool depth_of_field = false;
+	bool m_super_sampling;
+	float m_aperture_size = 0.4f;
+	float m_rad_size = 130.0f;
 };
 #endif
