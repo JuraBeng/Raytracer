@@ -22,7 +22,7 @@ class Raytracer : public SimpleGuiDX11
 {
 public:
 	Raytracer(const int width, const int height,
-		const float fov_y, const Vector3 view_from, const Vector3 view_at);
+		const float fov_y, const Vector3 view_from, const Vector3 view_at, std::atomic_int *t_jobs);
 	~Raytracer();
 
 	int InitDeviceAndScene(const char* config);
@@ -37,6 +37,7 @@ public:
 	int Ui();
 
 private:
+	std::atomic_int* m_jobs;
 	MirrorShader* m_mirror_shader;
 	std::vector<Surface*> surfaces_;
 	std::vector<Surface*> surfaces2_;

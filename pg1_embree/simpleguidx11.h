@@ -7,7 +7,7 @@
 class SimpleGuiDX11
 {
 public:	
-	SimpleGuiDX11( const int width, const int height);	
+	SimpleGuiDX11( const int width, const int height, std::atomic_int *t_jobs);	
 	~SimpleGuiDX11();		
 	
 	int MainLoop();	
@@ -35,7 +35,8 @@ protected:
 
 	bool vsync_{ true };
 
-private:	
+private:
+	std::atomic_int* m_jobs;
 	WNDCLASSEX wc_;
 	HWND hwnd_;
 

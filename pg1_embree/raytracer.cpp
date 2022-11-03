@@ -7,8 +7,9 @@
 #include "tutorials.h"
 
 Raytracer::Raytracer(const int width, const int height,
-	const float fov_y, const Vector3 view_from, const Vector3 view_at) : SimpleGuiDX11(width, height)
+	const float fov_y, const Vector3 view_from, const Vector3 view_at, std::atomic_int* t_jobs) : SimpleGuiDX11(width, height, t_jobs)
 {
+	m_jobs = t_jobs;
 	m_cube_map = new CubeMap(
 		"../../../data/posx.jpg", 
 		"../../../data/negx.jpg", 
@@ -407,13 +408,10 @@ Vector3 Raytracer::TraceRay(RTCRay t_ray, int t_depth, int t_max_depth)
 				return out;
 			}
 
-			
-
 			if(material->shader == 1)
 				output_color = useOpaqueShader(ray_hit, normal, hit_point, *material, t_depth, t_max_depth);
 			if (material->shader == 2)
 				output_color = m_mirror_shader->useShader(ray_hit, normal, hit_point, *material, t_depth, t_max_depth);
-			//useMirrorShader(ray_hit, normal, hit_point, *material, t_depth, t_max_depth);
 			if (material->shader == 3)
 				output_color = useTransparentShader(ray_hit, normal, hit_point, *material, t_depth, t_max_depth);
 		}
@@ -455,10 +453,10 @@ Vector3 Raytracer::useTransparentShader(RTCRayHit &t_rayhit, Vector3 &t_normal, 
 	RTCRay refr_ray = ray_ops::generateRay(t_hitpoint, refracted_dir, outgoing_ior, 0.02f);
 	ray_ops::fresnel(incident_ior, outgoing_ior, t_normal, view_dir, &refl_coef, &refr_coef);
 
-	Vector3 specular = TraceRay(refl_ray, t_depth + 1, t_max_depth) * refl_coef;
+	Vector3 reflected = TraceRay(refl_ray, t_depth + 1, t_max_depth) * refl_coef;
 	Vector3 refracted = TraceRay(refr_ray, t_depth + 1, t_max_depth) * refr_coef * attenuation;
 
-	return refracted + specular;
+	return refracted + reflected;
 }
 
 Vector3 Raytracer::useOpaqueShader(RTCRayHit &t_rayhit, Vector3 &t_normal, Vector3 &t_hitpoint, Material& t_material, int t_depth, int t_max_depth)

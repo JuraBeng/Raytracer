@@ -14,10 +14,11 @@ void clear_screen(char fill = ' ') {
 	SetConsoleCursorPosition(console, tl);
 }
 
-SimpleGuiDX11::SimpleGuiDX11( const int width, const int height)
+SimpleGuiDX11::SimpleGuiDX11( const int width, const int height, std::atomic_int *t_jobs)
 {
 	width_ = width;
 	height_ = height;
+	m_jobs = t_jobs;
 	Init();
 }
 
@@ -114,7 +115,7 @@ void SimpleGuiDX11::Producer()
 		//std::this_thread::sleep_for( std::chrono::milliseconds( 50 ) );
 #pragma omp parallel for num_threads(16) collapse(2)
 		for ( int y = 0; y < height_; ++y )
-		{		
+		{
 			for ( int x = 0; x < width_; ++x )
 			{				
 
@@ -128,6 +129,7 @@ void SimpleGuiDX11::Producer()
 
 				//pixel.copy( local_data[offset] );
 			}
+			(*m_jobs)++;
 		}
 
 		// write rendering results
