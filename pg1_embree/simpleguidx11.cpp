@@ -102,7 +102,6 @@ void SimpleGuiDX11::Producer()
 
 	float t = 0.0f; // time
 	auto t0 = std::chrono::high_resolution_clock::now();
-
 	// refinenment loop
 	//for ( float t = 0.0f; t < 1e+3 && !finish_request_.load( std::memory_order_acquire ); t += float( 1e-1 ) )
 	while ( !finish_request_.load( std::memory_order_acquire ) )
@@ -111,9 +110,11 @@ void SimpleGuiDX11::Producer()
 		std::chrono::duration<float> dt = t1 - t0;
 		t += dt.count();
 		t0 = t1;
+		*m_jobs = 0;
+
 		// compute rendering
 		//std::this_thread::sleep_for( std::chrono::milliseconds( 50 ) );
-#pragma omp parallel for num_threads(16) collapse(2)
+#pragma omp parallel for num_threads(4) collapse(2)
 		for ( int y = 0; y < height_; ++y )
 		{
 			for ( int x = 0; x < width_; ++x )
@@ -208,6 +209,7 @@ int SimpleGuiDX11::MainLoop()
 		ImGui_ImplDX11_RenderDrawData( ImGui::GetDrawData() );
 		
 		g_pSwapChain->Present( ( ( vsync_ ) ? 1 : 0 ), 0 ); // present with or without vsync
+
 	}
 
 	finish_request_.store( true, std::memory_order_release );

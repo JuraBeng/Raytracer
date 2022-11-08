@@ -218,8 +218,10 @@ int tutorial_4(const std::string file_name, const char* config)
 
 	//Raytracer raytracer( 640, 480, deg2rad( 45.0 ),
 		//Vector3( 0, 1, 37 ), Vector3( 0, 0, 0 ), config );
+	std::atomic_int* jobs = new std::atomic_int;
+	*jobs = 0;
 	Raytracer raytracer(1000, 800, deg2rad(45.0),
-		Vector3(-3, 0, 0), Vector3(1, 0, 0));
+		Vector3(-3, 0, 0), Vector3(1, 0, 0), jobs);
 	raytracer.LoadScene(file_name, config);
 	raytracer.MainLoop();
 

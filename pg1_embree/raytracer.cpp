@@ -10,6 +10,7 @@ Raytracer::Raytracer(const int width, const int height,
 	const float fov_y, const Vector3 view_from, const Vector3 view_at, std::atomic_int* t_jobs) : SimpleGuiDX11(width, height, t_jobs)
 {
 	m_jobs = t_jobs;
+	*m_jobs = 0;
 	m_cube_map = new CubeMap(
 		"../../../data/posx.jpg", 
 		"../../../data/negx.jpg", 
@@ -347,6 +348,7 @@ int Raytracer::Ui()
 		ImGui::Text("Using SSAA with %d samples per pixel", m_samples);
 	ImGui::Text("Rendering for %dX%d size.", m_width, m_height);
 	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+	ImGui::Text("%d jobs done of total %d jobs", m_jobs->load(), m_height);
 	ImGui::End();
 	camera_ = Camera(m_width, m_height, deg2rad(45.0), view_from, view_at);
 	return 0;
